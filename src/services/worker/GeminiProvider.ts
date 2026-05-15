@@ -18,7 +18,7 @@ import {
 import { ClassifiedProviderError } from './provider-errors.js';
 import { withRetry } from './retry.js';
 
-const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1/models';
+const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models';
 
 /**
  * Parse Retry-After header (seconds or HTTP-date).
@@ -115,6 +115,9 @@ export function classifyGeminiError(input: {
 }
 
 export type GeminiModel =
+  | 'gemini-1.5-flash'
+  | 'gemini-1.5-flash-8b'
+  | 'gemini-1.5-pro'
   | 'gemini-2.5-flash-lite'
   | 'gemini-2.5-flash'
   | 'gemini-2.5-pro'
@@ -143,7 +146,9 @@ async function enforceRateLimitForModel(model: GeminiModel, rateLimitingEnabled:
     return;
   }
 
-  const rpm = GEMINI_RPM_LIMITS[model] || 5;
+  const settings = SettingsDefaultsManager.loadFromFile(USER_SETTINGS_PATH);
+  const overrideRpm = parseInt(settings.CLAUDE_MEM_GEMINI_RPM);
+  const rpm = !isNaN(overrideRpm) && overrideRpm > 0 ? overrideRpm : (GEMINI_RPM_LIMITS[model] || 5);
   const minimumDelayMs = Math.ceil(60000 / rpm) + 100; 
 
   const now = Date.now();
@@ -509,6 +514,9 @@ export class GeminiProvider {
     const defaultModel: GeminiModel = 'gemini-2.5-flash';
     const configuredModel = settings.CLAUDE_MEM_GEMINI_MODEL || defaultModel;
     const validModels: GeminiModel[] = [
+      'gemini-1.5-flash',
+      'gemini-1.5-flash-8b',
+      'gemini-1.5-pro',
       'gemini-2.5-flash-lite',
       'gemini-2.5-flash',
       'gemini-2.5-pro',
